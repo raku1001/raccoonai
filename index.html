@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>毛茸茸辨識器｜浣熊・狸貓・小熊貓</title>
+  <style>
+    :root{
+      --bg:#0f1717; --panel:#172222; --panel2:#1d2b2b; --text:#f3f7f6;
+      --muted:#9fb0ad; --line:#30403e; --accent:#d9ff69; --danger:#ff8c8c;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; color:var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(217,255,105,.12), transparent 28rem),
+        linear-gradient(145deg,#0b1111,#132020);
+      font-family:Inter,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    }
+    .wrap{width:min(1100px,calc(100% - 32px));margin:auto;padding:54px 0 72px}
+    header{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin-bottom:28px}
+    .eyebrow{color:var(--accent);font-size:13px;letter-spacing:.18em;font-weight:800}
+    h1{font-size:clamp(34px,6vw,72px);line-height:.98;margin:10px 0 14px;letter-spacing:-.05em}
+    .desc{color:var(--muted);max-width:660px;line-height:1.75;margin:0}
+    .badge{border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);white-space:nowrap}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+    .card{background:rgba(23,34,34,.88);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.28)}
+    .drop{
+      min-height:470px;border:1px dashed #536561;border-radius:18px;display:grid;place-items:center;
+      position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.008));
+      cursor:pointer;transition:.2s ease;
+    }
+    .drop.drag{border-color:var(--accent);background:rgba(217,255,105,.07)}
+    .drop input{display:none}
+    .placeholder{text-align:center;padding:28px}
+    .icon{font-size:54px;margin-bottom:12px}
+    .placeholder strong{display:block;font-size:19px;margin-bottom:8px}
+    .placeholder span{color:var(--muted);font-size:14px}
+    #preview{display:none;width:100%;height:100%;min-height:470px;object-fit:contain;background:#0a0f0f}
+    .actions{display:flex;gap:10px;margin-top:14px}
+    button{
+      border:0;border-radius:14px;padding:14px 17px;font-weight:800;font-size:15px;cursor:pointer;
+      transition:transform .15s ease,opacity .15s ease;
+    }
+    button:hover{transform:translateY(-1px)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+    .primary{flex:1;background:var(--accent);color:#11170b}
+    .secondary{background:#263534;color:var(--text)}
+    .status{min-height:24px;margin:4px 0 18px;color:var(--muted);font-size:14px;line-height:1.6}
+    .winner{background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px}
+    .winner small{color:var(--muted)}
+    .winner h2{font-size:34px;margin:7px 0 5px}
+    .winner p{margin:0;color:var(--muted);line-height:1.65}
+    .score{margin:14px 0}
+    .score-head{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px}
+    .track{height:12px;border-radius:999px;background:#0b1212;overflow:hidden;border:1px solid #293937}
+    .bar{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .55s ease}
+    .facts{border-top:1px solid var(--line);padding-top:17px;margin-top:20px}
+    .facts h3{margin:0 0 10px;font-size:15px}
+    .facts ul{padding-left:19px;margin:0;color:var(--muted);line-height:1.8;font-size:14px}
+    .notice{margin-top:18px;font-size:12px;color:#81918e;line-height:1.7}
+    .error{color:var(--danger)}
+    .spinner{display:inline-block;width:13px;height:13px;border:2px solid #62716f;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:7px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:780px){
+      header{display:block}.badge{display:inline-block;margin-top:16px}.grid{grid-template-columns:1fr}.drop,#preview{min-height:330px}
+    }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">LOCAL AI CLASSIFIER</div>
+      <h1>這是哪一隻？</h1>
+      <p class="desc">放入一張動物照片，辨別它較接近浣熊、狸貓或小熊貓。圖片只在你的瀏覽器中處理。</p>
+    </div>
+    <div class="badge">🦝 3 種動物</div>
+  </header>
+
+  <section class="grid">
+    <div class="card">
+      <label class="drop" id="dropZone">
+        <input id="fileInput" type="file" accept="image/*" />
+        <div class="placeholder" id="placeholder">
+          <div class="icon">＋</div>
+          <strong>點擊或拖曳圖片到這裡</strong>
+          <span>支援 JPG、PNG、WEBP</span>
+        </div>
+        <img id="preview" alt="待辨識圖片預覽" />
+      </label>
+      <div class="actions">
+        <button class="secondary" id="clearBtn" disabled>清除</button>
+        <button class="primary" id="analyzeBtn" disabled>開始辨識</button>
+      </div>
+    </div>
+
+    <aside class="card">
+      <div class="status" id="status">請先選擇圖片。首次使用會下載約數十 MB 的 AI 模型。</div>
+      <div class="winner" id="winner">
+        <small>辨識結果</small>
+        <h2 id="winnerName">尚未分析</h2>
+        <p id="winnerText">結果會顯示在這裡。</p>
+      </div>
+      <div id="scores"></div>
+      <div class="facts">
+        <h3>快速辨別特徵</h3>
+        <ul>
+          <li><b>浣熊：</b>黑色眼罩、環紋長尾、尖鼻。</li>
+          <li><b>狸貓：</b>犬科外型、臉部黑斑較擴散、尾巴通常沒有明顯環紋。</li>
+          <li><b>小熊貓：</b>紅褐色毛、白色臉部花紋、蓬鬆環紋尾。</li>
+        </ul>
+      </div>
+      <div class="notice">這是零樣本影像分類工具，適合一般照片的初步辨識，不等同專業物種鑑定。遮擋、卡通圖、幼體或特殊角度可能降低準確度。</div>
+    </aside>
+  </section>
+</main>
+
+<script type="module">
+  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1';
+
+  env.allowLocalModels = false;
+
+  const fileInput = document.querySelector('#fileInput');
+  const dropZone = document.querySelector('#dropZone');
+  const preview = document.querySelector('#preview');
+  const placeholder = document.querySelector('#placeholder');
+  const analyzeBtn = document.querySelector('#analyzeBtn');
+  const clearBtn = document.querySelector('#clearBtn');
+  const status = document.querySelector('#status');
+  const winnerName = document.querySelector('#winnerName');
+  const winnerText = document.querySelector('#winnerText');
+  const scores = document.querySelector('#scores');
+
+  let selectedFile = null;
+  let classifierPromise = null;
+  let objectURL = null;
+
+  const classes = [
+    { key:'raccoon', zh:'浣熊', prompt:'a clear wildlife photograph of a North American raccoon, Procyon lotor, with a black eye mask and ringed tail' },
+    { key:'raccoon dog', zh:'狸貓', prompt:'a clear wildlife photograph of a raccoon dog, Nyctereutes procyonoides, a canine animal also called tanuki' },
+    { key:'red panda', zh:'小熊貓', prompt:'a clear wildlife photograph of a red panda, Ailurus fulgens, with reddish fur and a fluffy ringed tail' }
+  ];
+
+  const descriptions = {
+    '浣熊':'模型認為照片最接近浣熊。可再確認是否有黑色眼罩與明顯環紋尾巴。',
+    '狸貓':'模型認為照片最接近狸貓。可再確認牠是否呈現較明顯的犬科體型與較短的尾巴。',
+    '小熊貓':'模型認為照片最接近小熊貓。可再確認是否有紅褐色毛、白色臉部花紋與蓬鬆長尾。'
+  };
+
+  function setStatus(message, isError=false, loading=false){
+    status.className = 'status' + (isError ? ' error' : '');
+    status.innerHTML = (loading ? '<span class="spinner"></span>' : '') + message;
+  }
+
+  function loadFile(file){
+    if(!file || !file.type.startsWith('image/')){
+      setStatus('請選擇有效的圖片檔案。', true);
+      return;
+    }
+    selectedFile = file;
+    if(objectURL) URL.revokeObjectURL(objectURL);
+    objectURL = URL.createObjectURL(file);
+    preview.src = objectURL;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    analyzeBtn.disabled = false;
+    clearBtn.disabled = false;
+    winnerName.textContent = '等待辨識';
+    winnerText.textContent = '按下「開始辨識」後顯示結果。';
+    scores.innerHTML = '';
+    setStatus(`已選擇：${file.name}`);
+  }
+
+  fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
+  ['dragenter','dragover'].forEach(type => dropZone.addEventListener(type, e => {
+    e.preventDefault(); dropZone.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(type => dropZone.addEventListener(type, e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+  }));
+  dropZone.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+
+  clearBtn.addEventListener('click', () => {
+    selectedFile = null; fileInput.value = '';
+    if(objectURL) URL.revokeObjectURL(objectURL);
+    objectURL = null; preview.src = ''; preview.style.display = 'none';
+    placeholder.style.display = 'block';
+    analyzeBtn.disabled = true; clearBtn.disabled = true;
+    winnerName.textContent = '尚未分析'; winnerText.textContent = '結果會顯示在這裡。';
+    scores.innerHTML = ''; setStatus('請先選擇圖片。');
+  });
+
+  async function getClassifier(){
+    if(!classifierPromise){
+      setStatus('正在載入 AI 模型，首次使用時間較長…', false, true);
+      classifierPromise = pipeline(
+        'zero-shot-image-classification',
+        'Xenova/clip-vit-base-patch32',
+        { dtype: 'q8' }
+      );
+    }
+    return classifierPromise;
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    if(!selectedFile) return;
+    analyzeBtn.disabled = true;
+    try{
+      const classifier = await getClassifier();
+      setStatus('正在分析圖片特徵…', false, true);
+
+      const result = await classifier(preview.src, classes.map(x => x.prompt));
+      const normalized = result.map(item => {
+        const c = classes.find(x => x.prompt === item.label);
+        return { name: c ? c.zh : item.label, score: item.score };
+      }).sort((a,b) => b.score-a.score);
+
+      const top = normalized[0];
+      const confidence = top.score >= .72 ? '較高' : top.score >= .5 ? '中等' : '偏低';
+      winnerName.textContent = top.name;
+      winnerText.textContent = `${descriptions[top.name]} 本次相對信心：${confidence}。`;
+
+      scores.innerHTML = normalized.map(item => `
+        <div class="score">
+          <div class="score-head"><span>${item.name}</span><b>${(item.score*100).toFixed(1)}%</b></div>
+          <div class="track"><div class="bar" style="width:${(item.score*100).toFixed(1)}%"></div></div>
+        </div>
+      `).join('');
+
+      setStatus('辨識完成。機率是三個候選類別之間的相對分數。');
+    }catch(err){
+      console.error(err);
+      classifierPromise = null;
+      setStatus('模型載入或辨識失敗。請確認網路連線，並使用最新版 Chrome、Edge 或 Firefox 再試一次。', true);
+      winnerName.textContent = '辨識失敗';
+      winnerText.textContent = '未取得有效結果。';
+    }finally{
+      analyzeBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

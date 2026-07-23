@@ -140,56 +140,37 @@
 
 const classes = [
   {
-    key: 'raccoon',
-    zh: '浣熊',
-    type: 'target',
-    prompt: 'a real wildlife photograph of a North American raccoon, Procyon lotor, with a black eye mask and ringed tail'
+    key: "raccoon",
+    zh: "浣熊",
+    type: "target",
+    prompt: "a real wildlife photograph of a North American raccoon, Procyon lotor, with a black eye mask and ringed tail"
   },
   {
-    key: 'raccoon dog',
-    zh: '狸貓',
-    type: 'target',
-    prompt: 'a real wildlife photograph of a raccoon dog, Nyctereutes procyonoides, a canine animal also called tanuki'
+    key: "raccoon_dog",
+    zh: "狸貓",
+    type: "target",
+    prompt: "a real wildlife photograph of a raccoon dog, Nyctereutes procyonoides, also called tanuki"
   },
   {
-    key: 'red panda',
-    zh: '小熊貓',
-    type: 'target',
-    prompt: 'a real wildlife photograph of a red panda, Ailurus fulgens, with reddish fur, white facial markings and a fluffy ringed tail'
-  },
-
-  {
-    key: 'other animal',
-    zh: '其他動物',
-    type: 'other',
-    prompt: 'a real photograph of another animal that is not a raccoon, raccoon dog, or red panda'
+    key: "red_panda",
+    zh: "小熊貓",
+    type: "target",
+    prompt: "a real wildlife photograph of a red panda, Ailurus fulgens, with reddish fur and a fluffy ringed tail"
   },
   {
-    key: 'domestic animal',
-    zh: '其他動物',
-    type: 'other',
-    prompt: 'a photograph of a domestic dog, domestic cat, fox, bear, skunk, badger, otter, or another mammal'
+    key: "other_animal",
+    zh: "其他動物",
+    type: "other",
+    prompt: "a real photograph of another animal that is not a raccoon, raccoon dog, or red panda"
   },
   {
-    key: 'fantasy creature',
-    zh: '非目標圖片',
-    type: 'other',
-    prompt: 'a fantasy creature such as a unicorn, dragon, magical animal, or fictional creature'
-  },
-  {
-    key: 'illustration',
-    zh: '非目標圖片',
-    type: 'other',
-    prompt: 'a cartoon, illustration, digital artwork, painting, anime character, toy, or stuffed animal'
-  },
-  {
-    key: 'object',
-    zh: '非目標圖片',
-    type: 'other',
-    prompt: 'an object, landscape, food, vehicle, person, or image without a real animal'
+    key: "non_real",
+    zh: "非真實圖片",
+    type: "other",
+    prompt: "a cartoon, illustration, painting, anime character, fantasy creature, toy, stuffed animal, object or landscape"
   }
 ];
-
+  
   const descriptions = {
     '浣熊':'模型認為照片最接近浣熊。可再確認是否有黑色眼罩與明顯環紋尾巴。',
     '狸貓':'模型認為照片最接近狸貓。可再確認牠是否呈現較明顯的犬科體型與較短的尾巴。',
@@ -286,15 +267,38 @@ const marginTooSmall =
 
 const isOther = top.type !== 'target';
 
-if (isOther) {
-  winnerName.textContent = '其他或無法辨識';
+if (top.key === "other_animal") {
+
+  winnerName.textContent = "其他動物";
   winnerText.textContent =
-    '這張圖片看起來不是浣熊、狸貓或小熊貓，可能是其他動物、幻想生物、插畫或非動物圖片。';
+    "辨識結果顯示這不是浣熊、狸貓或小熊貓，而是其他種類的動物。";
+
+} else if (top.key === "non_real") {
+
+  winnerName.textContent = "非真實圖片";
+  winnerText.textContent =
+    "這張圖片看起來像插畫、卡通、AI生成圖片、玩偶或幻想生物，因此不進行物種辨識。";
+
 } else if (scoreTooLow || marginTooSmall) {
-  winnerName.textContent = '無法確認';
+
+  winnerName.textContent = "無法確認";
   winnerText.textContent =
-    '模型無法明確判定這張圖片。請使用主體清楚、沒有大面積遮擋、背景較單純的真實動物照片。';
+    "模型無法明確判定這張圖片，請使用主體清楚、背景單純的真實動物照片。";
+
 } else {
+
+  const confidence =
+    top.score >= 0.5
+      ? "較高"
+      : top.score >= 0.35
+      ? "中等"
+      : "偏低";
+
+  winnerName.textContent = top.name;
+  winnerText.textContent =
+    `${descriptions[top.name]} 本次相對信心：${confidence}。`;
+
+}
   const confidence =
     top.score >= 0.5
       ? '較高'

@@ -142,34 +142,59 @@ const classes = [
     key: "raccoon",
     zh: "浣熊",
     type: "target",
-    prompt: "A high-quality real wildlife photograph taken with a camera of a North American raccoon (Procyon lotor). The animal has a broad black eye mask covering both eyes, gray and black fur, a stocky body, small rounded ears, and a thick bushy tail with distinct black and gray rings. It is not a raccoon dog, not a red panda, and not a masked palm civet."
+    prompts: [
+      "a real wildlife photograph of a North American raccoon, Procyon lotor",
+      "a gray raccoon with a broad black eye mask and small rounded ears",
+      "a stocky North American raccoon with a thick black and gray ringed tail",
+      "a camera photograph of a raccoon, not a raccoon dog, red panda, or civet"
+    ]
   },
   {
     key: "raccoon_dog",
     zh: "狸貓",
     type: "target",
-    prompt: "A high-quality real wildlife photograph taken with a camera of a raccoon dog (Nyctereutes procyonoides). The animal has a dog-like face with a longer muzzle, brown or gray fur, dark facial markings instead of a broad eye mask, short rounded ears, and a fluffy tail without clear black rings. It is not a raccoon, not a red panda, and not a masked palm civet."
+    prompts: [
+      "a real wildlife photograph of a raccoon dog, Nyctereutes procyonoides, also called tanuki",
+      "a brown gray raccoon dog with a dog-like face and a long canine muzzle",
+      "a raccoon dog with diffuse dark facial markings, short rounded ears, and a bushy tail without clear rings",
+      "a camera photograph of a tanuki raccoon dog, not a North American raccoon, red panda, or civet"
+    ]
   },
   {
     key: "red_panda",
     zh: "小熊貓",
     type: "target",
-    prompt: "A high-quality real wildlife photograph taken with a camera of a red panda (Ailurus fulgens). The animal has reddish-brown fur, a white face with tear markings, dark legs, small rounded ears, and a long fluffy tail with orange and cream rings. It is not a raccoon, not a raccoon dog, and not a masked palm civet."
+    prompts: [
+      "a real wildlife photograph of a red panda, Ailurus fulgens",
+      "a red panda with reddish brown fur, a white face, and dark tear markings",
+      "a small red panda with dark legs and a long fluffy orange and cream ringed tail",
+      "a camera photograph of a red panda, not a raccoon, raccoon dog, or civet"
+    ]
   },
   {
     key: "other_animal",
     zh: "其他動物",
     type: "other",
-    prompt: "A high-quality real wildlife photograph of an animal that is clearly not a raccoon, raccoon dog, or red panda. This includes foxes, dogs, cats, wolves, bears, badgers, otters, civets, masked palm civets, coatis, martens, weasels, meerkats, monkeys, deer, birds, and other wildlife."
+    prompts: [
+      "a real photograph of a masked palm civet, fox, dog, cat, wolf, badger, otter, bear, or coati",
+      "a real wildlife photograph of an animal other than a raccoon, raccoon dog, or red panda",
+      "a real photograph of a bird, deer, monkey, squirrel, marten, weasel, meerkat, or another animal",
+      "a camera photograph of an unknown real animal that does not match the three target species"
+    ]
   },
   {
     key: "non_real",
     zh: "非真實圖片",
     type: "other",
-    prompt: "A non-real image including cartoons, anime, illustrations, paintings, digital art, CGI, 3D renders, plush toys, statues, figurines, game characters, fantasy creatures, AI-generated animals, or objects instead of a real wildlife photograph."
+    prompts: [
+      "a cartoon, anime, illustration, painting, or digital artwork of an animal",
+      "a plush toy, stuffed animal, figurine, statue, model, or game character",
+      "a CGI render, 3D rendered animal, fantasy creature, or AI-generated animal image",
+      "an object, logo, icon, drawing, or non-photographic image instead of a real wildlife photograph"
+    ]
   }
 ];
-  
+
   const descriptions = {
     '浣熊':'模型認為照片最接近浣熊。可再確認是否有黑色眼罩與明顯環紋尾巴。',
     '狸貓':'模型認為照片最接近狸貓。可再確認牠是否呈現較明顯的犬科體型與較短的尾巴。',
@@ -238,21 +263,57 @@ const classes = [
       const classifier = await getClassifier();
       setStatus('正在分析圖片特徵…', false, true);
 
-     const result = await classifier(
-  preview.src,
-  classes.map(x => x.prompt)
-);
+      const promptEntries = classes.flatMap(group =>
+        group.prompts.map(prompt => ({
+          prompt,
+          key: group.key,
+          zh: group.zh,
+          type: group.type
+        }))
+      );
 
-const normalized = result.map(item => {
-  const matchedClass = classes.find(x => x.prompt === item.label);
+      const result = await classifier(
+        preview.src,
+        promptEntries.map(item => item.prompt)
+      );
 
-  return {
-    name: matchedClass ? matchedClass.zh : item.label,
-    key: matchedClass ? matchedClass.key : item.label,
-    type: matchedClass ? matchedClass.type : 'other',
-    score: item.score
-  };
-}).sort((a, b) => b.score - a.score);
+      const scoreGroups = new Map(
+        classes.map(group => [group.key, {
+          name: group.zh,
+          key: group.key,
+          type: group.type,
+          total: 0,
+          count: 0
+        }])
+      );
+
+      result.forEach(item => {
+        const promptEntry = promptEntries.find(entry => entry.prompt === item.label);
+        if (!promptEntry) return;
+
+        const group = scoreGroups.get(promptEntry.key);
+        group.total += item.score;
+        group.count += 1;
+      });
+
+      const categoryScores = [...scoreGroups.values()].map(group => ({
+        name: group.name,
+        key: group.key,
+        type: group.type,
+        rawScore: group.count ? group.total / group.count : 0
+      }));
+
+      const scoreTotal = categoryScores.reduce(
+        (sum, item) => sum + item.rawScore,
+        0
+      ) || 1;
+
+      const normalized = categoryScores.map(item => ({
+        name: item.name,
+        key: item.key,
+        type: item.type,
+        score: item.rawScore / scoreTotal
+      })).sort((a, b) => b.score - a.score);
 
 const top = normalized[0];
 const second = normalized[1];

@@ -347,18 +347,64 @@ const scoreTooLow = top.score < MIN_SCORE;
 const marginTooSmall =
   second && top.score - second.score < MIN_MARGIN;
 
-// 白鼻心分數只要接近浣熊，就優先歸入「其他動物」，降低誤判成浣熊。
-const looksLikeMaskedPalmCivet =
-  maskedPalmCivet &&
-  raccoon &&
-  maskedPalmCivet.score >= 0.16 &&
-  maskedPalmCivet.score >= raccoon.score - 0.02;
+// 當第一輪判成浣熊時，再做一次「浣熊 vs 白鼻心」二選一複判。
+// 二選一比把白鼻心混在所有分類中一起競爭更穩定。
+let looksLikeMaskedPalmCivet = false;
+let civetCheckText = "";
+
+if (top.key === "raccoon") {
+  const raccoonCheckPrompts = [
+    "a North American raccoon with a broad black mask across both eyes, rounded ears, a stocky body, and a thick tail with bold black and gray rings",
+    "Procyon lotor, a compact gray raccoon with a wide bandit mask and a clearly ringed bushy tail",
+    "a real raccoon with a short face, black eye mask, and multiple high-contrast rings around the tail"
+  ];
+
+  const civetCheckPrompts = [
+    "a masked palm civet, Paguma larvata, with a long narrow pointed muzzle, a white stripe down the nose, a slender body, and a long plain tail without bold rings",
+    "an Asian masked palm civet with pale facial markings, dark eye patches, an elongated gray-brown body, and an unringed tail",
+    "a white-nosed civet with a narrow face, long snout, white nose stripe, short legs, and a long non-striped tail"
+  ];
+
+  const checkEntries = [
+    ...raccoonCheckPrompts.map(prompt => ({ prompt, key: "raccoon" })),
+    ...civetCheckPrompts.map(prompt => ({ prompt, key: "masked_palm_civet" }))
+  ];
+
+  const checkResult = await classifier(
+    preview.src,
+    checkEntries.map(item => item.prompt)
+  );
+
+  const checkScores = { raccoon: [], masked_palm_civet: [] };
+
+  checkResult.forEach(item => {
+    const entry = checkEntries.find(candidate => candidate.prompt === item.label);
+    if (entry) checkScores[entry.key].push(item.score);
+  });
+
+  const averageTopTwo = values => {
+    const topTwo = [...values].sort((a, b) => b - a).slice(0, 2);
+    return topTwo.length
+      ? topTwo.reduce((sum, value) => sum + value, 0) / topTwo.length
+      : 0;
+  };
+
+  const raccoonCheckScore = averageTopTwo(checkScores.raccoon);
+  const civetCheckScore = averageTopTwo(checkScores.masked_palm_civet);
+
+  // 白鼻心只要在專門複判中高於浣熊，或非常接近浣熊，就歸入其他動物。
+  looksLikeMaskedPalmCivet =
+    civetCheckScore >= raccoonCheckScore - 0.015;
+
+  civetCheckText =
+    `白鼻心複判 ${(civetCheckScore * 100).toFixed(1)}%，浣熊複判 ${(raccoonCheckScore * 100).toFixed(1)}%。`;
+}
 
 if (looksLikeMaskedPalmCivet) {
 
   winnerName.textContent = "其他動物";
   winnerText.textContent =
-    "圖片外觀較接近白鼻心，因此歸類為其他動物。";
+    `專門複判後較接近白鼻心，因此歸類為其他動物。${civetCheckText}`;
 
 } else if (top.key === "other_animal") {
 

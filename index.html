@@ -73,9 +73,11 @@
     <div>
       <div class="eyebrow">LOCAL AI CLASSIFIER</div>
       <h1>這是哪一隻？</h1>
-      <p class="desc">放入一張動物照片，辨別它較接近浣熊、狸貓或小熊貓。圖片只在你的瀏覽器中處理。</p>
+      <p class="desc">  放入一張圖片，辨別它是否為浣熊、狸貓或小熊貓。
+  其他動物、插畫與幻想生物會顯示為無法辨識。
+  圖片只在你的瀏覽器中處理。</p>
     </div>
-    <div class="badge">🦝 3 種動物</div>
+    <div class="badge">🦝 3 種目標物種</div>
   </header>
 
   <section class="grid">
@@ -137,10 +139,57 @@
   let objectURL = null;
 
   const classes = [
-    { key:'raccoon', zh:'浣熊', prompt:'a clear wildlife photograph of a North American raccoon, Procyon lotor, with a black eye mask and ringed tail' },
-    { key:'raccoon dog', zh:'狸貓', prompt:'a clear wildlife photograph of a raccoon dog, Nyctereutes procyonoides, a canine animal also called tanuki' },
-    { key:'red panda', zh:'小熊貓', prompt:'a clear wildlife photograph of a red panda, Ailurus fulgens, with reddish fur and a fluffy ringed tail' }
-  ];
+const classes = [
+  {
+    key: 'raccoon',
+    zh: '浣熊',
+    type: 'target',
+    prompt: 'a real wildlife photograph of a North American raccoon, Procyon lotor, with a black eye mask and ringed tail'
+  },
+  {
+    key: 'raccoon dog',
+    zh: '狸貓',
+    type: 'target',
+    prompt: 'a real wildlife photograph of a raccoon dog, Nyctereutes procyonoides, a canine animal also called tanuki'
+  },
+  {
+    key: 'red panda',
+    zh: '小熊貓',
+    type: 'target',
+    prompt: 'a real wildlife photograph of a red panda, Ailurus fulgens, with reddish fur, white facial markings and a fluffy ringed tail'
+  },
+
+  {
+    key: 'other animal',
+    zh: '其他動物',
+    type: 'other',
+    prompt: 'a real photograph of another animal that is not a raccoon, raccoon dog, or red panda'
+  },
+  {
+    key: 'domestic animal',
+    zh: '其他動物',
+    type: 'other',
+    prompt: 'a photograph of a domestic dog, domestic cat, fox, bear, skunk, badger, otter, or another mammal'
+  },
+  {
+    key: 'fantasy creature',
+    zh: '非目標圖片',
+    type: 'other',
+    prompt: 'a fantasy creature such as a unicorn, dragon, magical animal, or fictional creature'
+  },
+  {
+    key: 'illustration',
+    zh: '非目標圖片',
+    type: 'other',
+    prompt: 'a cartoon, illustration, digital artwork, painting, anime character, toy, or stuffed animal'
+  },
+  {
+    key: 'object',
+    zh: '非目標圖片',
+    type: 'other',
+    prompt: 'an object, landscape, food, vehicle, person, or image without a real animal'
+  }
+];
 
   const descriptions = {
     '浣熊':'模型認為照片最接近浣熊。可再確認是否有黑色眼罩與明顯環紋尾巴。',
@@ -210,25 +259,73 @@
       const classifier = await getClassifier();
       setStatus('正在分析圖片特徵…', false, true);
 
-      const result = await classifier(preview.src, classes.map(x => x.prompt));
-      const normalized = result.map(item => {
-        const c = classes.find(x => x.prompt === item.label);
-        return { name: c ? c.zh : item.label, score: item.score };
-      }).sort((a,b) => b.score-a.score);
+     const result = await classifier(
+  preview.src,
+  classes.map(x => x.prompt)
+);
 
-      const top = normalized[0];
-      const confidence = top.score >= .72 ? '較高' : top.score >= .5 ? '中等' : '偏低';
-      winnerName.textContent = top.name;
-      winnerText.textContent = `${descriptions[top.name]} 本次相對信心：${confidence}。`;
+const normalized = result.map(item => {
+  const matchedClass = classes.find(x => x.prompt === item.label);
 
-      scores.innerHTML = normalized.map(item => `
-        <div class="score">
-          <div class="score-head"><span>${item.name}</span><b>${(item.score*100).toFixed(1)}%</b></div>
-          <div class="track"><div class="bar" style="width:${(item.score*100).toFixed(1)}%"></div></div>
-        </div>
-      `).join('');
+  return {
+    name: matchedClass ? matchedClass.zh : item.label,
+    key: matchedClass ? matchedClass.key : item.label,
+    type: matchedClass ? matchedClass.type : 'other',
+    score: item.score
+  };
+}).sort((a, b) => b.score - a.score);
 
-      setStatus('辨識完成。機率是三個候選類別之間的相對分數。');
+const top = normalized[0];
+const second = normalized[1];
+
+const MIN_SCORE = 0.28;
+const MIN_MARGIN = 0.025;
+
+const scoreTooLow = top.score < MIN_SCORE;
+const marginTooSmall =
+  second && top.score - second.score < MIN_MARGIN;
+
+const isOther = top.type !== 'target';
+
+if (isOther) {
+  winnerName.textContent = '其他或無法辨識';
+  winnerText.textContent =
+    '這張圖片看起來不是浣熊、狸貓或小熊貓，可能是其他動物、幻想生物、插畫或非動物圖片。';
+} else if (scoreTooLow || marginTooSmall) {
+  winnerName.textContent = '無法確認';
+  winnerText.textContent =
+    '模型無法明確判定這張圖片。請使用主體清楚、沒有大面積遮擋、背景較單純的真實動物照片。';
+} else {
+  const confidence =
+    top.score >= 0.5
+      ? '較高'
+      : top.score >= 0.35
+        ? '中等'
+        : '偏低';
+
+  winnerName.textContent = top.name;
+  winnerText.textContent =
+    `${descriptions[top.name]} 本次相對信心：${confidence}。`;
+}
+
+scores.innerHTML = normalized.map(item => `
+  <div class="score">
+    <div class="score-head">
+      <span>${item.name}</span>
+      <b>${(item.score * 100).toFixed(1)}%</b>
+    </div>
+    <div class="track">
+      <div
+        class="bar"
+        style="width:${(item.score * 100).toFixed(1)}%"
+      ></div>
+    </div>
+  </div>
+`).join('');
+
+setStatus(
+  '辨識完成。結果包含目標物種、其他動物及非目標圖片的相對分數。'
+);
     }catch(err){
       console.error(err);
       classifierPromise = null;

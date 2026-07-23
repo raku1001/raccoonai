@@ -143,10 +143,10 @@ const classes = [
     zh: "浣熊",
     type: "target",
     prompts: [
-      "a real wildlife photograph of a North American raccoon, Procyon lotor",
-      "a gray raccoon with a broad black eye mask and small rounded ears",
-      "a stocky North American raccoon with a thick black and gray ringed tail",
-      "a camera photograph of a raccoon, not a raccoon dog, red panda, or civet"
+      "a wildlife photo of a North American raccoon with gray fur, a wide black mask across both eyes, and a clearly black-and-gray ringed tail",
+      "a close-up camera photo of Procyon lotor, a gray raccoon with a short pointed muzzle, rounded ears, and a broad dark eye mask",
+      "a full-body North American raccoon with a compact stocky body and a thick tail with several high-contrast dark rings",
+      "a real North American raccoon photographed outdoors, gray and black fur, black bandit mask, striped tail"
     ]
   },
   {
@@ -154,10 +154,10 @@ const classes = [
     zh: "狸貓",
     type: "target",
     prompts: [
-      "a real wildlife photograph of a raccoon dog, Nyctereutes procyonoides, also called tanuki",
-      "a brown gray raccoon dog with a dog-like face and a long canine muzzle",
-      "a raccoon dog with diffuse dark facial markings, short rounded ears, and a bushy tail without clear rings",
-      "a camera photograph of a tanuki raccoon dog, not a North American raccoon, red panda, or civet"
+      "a wildlife photo of a raccoon dog, Nyctereutes procyonoides, with a canine body, brown-gray shaggy fur, and dark patches around the eyes",
+      "a close-up camera photo of a tanuki raccoon dog with a dog-like muzzle, broad cheeks, short rounded ears, and brown gray fur",
+      "a full-body raccoon dog standing on four canine legs with a thick unstriped bushy tail and dark facial markings",
+      "a real Japanese tanuki or raccoon dog photographed outdoors, fox-like canine shape, dark face, shaggy brown coat"
     ]
   },
   {
@@ -165,10 +165,10 @@ const classes = [
     zh: "小熊貓",
     type: "target",
     prompts: [
-      "a real wildlife photograph of a red panda, Ailurus fulgens",
-      "a red panda with reddish brown fur, a white face, and dark tear markings",
-      "a small red panda with dark legs and a long fluffy orange and cream ringed tail",
-      "a camera photograph of a red panda, not a raccoon, raccoon dog, or civet"
+      "a wildlife photo of a red panda, Ailurus fulgens, with vivid reddish-orange fur, a white face, dark eye markings, and black legs",
+      "a close-up camera photo of a red panda with a round white-and-red face, white ears, reddish fur, and dark tear-shaped markings",
+      "a full-body red panda with short black legs and a very long fluffy orange tail with pale cream rings",
+      "a real red panda photographed in a tree, rusty red coat, white facial markings, black belly and legs, thick striped tail"
     ]
   },
   {
@@ -176,10 +176,10 @@ const classes = [
     zh: "其他動物",
     type: "other",
     prompts: [
-      "a real photograph of a masked palm civet, fox, dog, cat, wolf, badger, otter, bear, or coati",
-      "a real wildlife photograph of an animal other than a raccoon, raccoon dog, or red panda",
-      "a real photograph of a bird, deer, monkey, squirrel, marten, weasel, meerkat, or another animal",
-      "a camera photograph of an unknown real animal that does not match the three target species"
+      "a real wildlife photo of a masked palm civet with a long slender body, pointed nose, gray-brown coat, and long unringed tail",
+      "a real camera photo of a fox, domestic dog, wolf, or coyote with a clearly canine head and long pointed ears",
+      "a real wildlife photo of a badger, otter, marten, weasel, meerkat, or coati",
+      "a real camera photo of a cat, bear, deer, monkey, squirrel, rabbit, bird, reptile, or another common animal"
     ]
   },
   {
@@ -187,10 +187,10 @@ const classes = [
     zh: "非真實圖片",
     type: "other",
     prompts: [
-      "a cartoon, anime, illustration, painting, or digital artwork of an animal",
-      "a plush toy, stuffed animal, figurine, statue, model, or game character",
-      "a CGI render, 3D rendered animal, fantasy creature, or AI-generated animal image",
-      "an object, logo, icon, drawing, or non-photographic image instead of a real wildlife photograph"
+      "a cartoon or anime drawing of an animal",
+      "an animal illustration, painting, digital artwork, icon, or logo",
+      "a plush toy, stuffed animal, figurine, statue, or animal model",
+      "a CGI render, 3D animal, fantasy creature, game character, or AI-generated artwork"
     ]
   }
 ];
@@ -282,8 +282,7 @@ const classes = [
           name: group.zh,
           key: group.key,
           type: group.type,
-          total: 0,
-          count: 0
+          scores: []
         }])
       );
 
@@ -292,16 +291,23 @@ const classes = [
         if (!promptEntry) return;
 
         const group = scoreGroups.get(promptEntry.key);
-        group.total += item.score;
-        group.count += 1;
+        group.scores.push(item.score);
       });
 
-      const categoryScores = [...scoreGroups.values()].map(group => ({
-        name: group.name,
-        key: group.key,
-        type: group.type,
-        rawScore: group.count ? group.total / group.count : 0
-      }));
+      const categoryScores = [...scoreGroups.values()].map(group => {
+        const strongest = [...group.scores]
+          .sort((a, b) => b - a)
+          .slice(0, 2);
+
+        return {
+          name: group.name,
+          key: group.key,
+          type: group.type,
+          rawScore: strongest.length
+            ? strongest.reduce((sum, score) => sum + score, 0) / strongest.length
+            : 0
+        };
+      });
 
       const scoreTotal = categoryScores.reduce(
         (sum, item) => sum + item.rawScore,

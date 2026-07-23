@@ -286,19 +286,7 @@ if (top.key === "other_animal") {
     "模型無法明確判定這張圖片，請使用主體清楚、背景單純的真實動物照片。";
 
 } else {
-
-  const confidence =
-    top.score >= 0.5
-      ? "較高"
-      : top.score >= 0.35
-      ? "中等"
-      : "偏低";
-
-  winnerName.textContent = top.name;
-  winnerText.textContent =
-    `${descriptions[top.name]} 本次相對信心：${confidence}。`;
-
-}
+  
   const confidence =
     top.score >= 0.5
       ? '較高'

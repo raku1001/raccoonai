@@ -172,14 +172,25 @@ const classes = [
     ]
   },
   {
+    key: "masked_palm_civet",
+    zh: "白鼻心",
+    type: "other",
+    prompts: [
+      "a real wildlife photograph of a masked palm civet, Paguma larvata, with a long pointed muzzle, a white stripe from the forehead to the nose, a slender gray-brown body, and a long tail without bold rings",
+      "a masked palm civet with white facial markings, dark patches around the eyes, a narrow face, elongated body, short legs, and a long plain tail",
+      "an Asian palm civet with a white nose stripe, pointed face, slender torso, and an unringed tail",
+      "a real camera photo of Paguma larvata, a gray-brown civet with a narrow snout, pale nose marking, and long non-striped tail"
+    ]
+  },
+  {
     key: "other_animal",
     zh: "其他動物",
     type: "other",
     prompts: [
-      "a real wildlife photo of a masked palm civet with a long slender body, pointed nose, gray-brown coat, and long unringed tail",
       "a real camera photo of a fox, domestic dog, wolf, or coyote with a clearly canine head and long pointed ears",
       "a real wildlife photo of a badger, otter, marten, weasel, meerkat, or coati",
-      "a real camera photo of a cat, bear, deer, monkey, squirrel, rabbit, bird, reptile, or another common animal"
+      "a real camera photo of a cat, bear, deer, monkey, squirrel, rabbit, bird, reptile, or another common animal",
+      "a real wildlife photograph of an animal species other than raccoon, raccoon dog, red panda, or masked palm civet"
     ]
   },
   {
@@ -321,8 +332,13 @@ const classes = [
         score: item.rawScore / scoreTotal
       })).sort((a, b) => b.score - a.score);
 
-const top = normalized[0];
-const second = normalized[1];
+const maskedPalmCivet = normalized.find(item => item.key === "masked_palm_civet");
+const raccoon = normalized.find(item => item.key === "raccoon");
+
+// 白鼻心是內部分類；一般排名時先排除，避免畫面直接顯示成新的主分類。
+const visibleRanking = normalized.filter(item => item.key !== "masked_palm_civet");
+const top = visibleRanking[0];
+const second = visibleRanking[1];
 
 const MIN_SCORE = 0.28;
 const MIN_MARGIN = 0.025;
@@ -331,9 +347,20 @@ const scoreTooLow = top.score < MIN_SCORE;
 const marginTooSmall =
   second && top.score - second.score < MIN_MARGIN;
 
-const isOther = top.type !== 'target';
+// 白鼻心分數只要接近浣熊，就優先歸入「其他動物」，降低誤判成浣熊。
+const looksLikeMaskedPalmCivet =
+  maskedPalmCivet &&
+  raccoon &&
+  maskedPalmCivet.score >= 0.16 &&
+  maskedPalmCivet.score >= raccoon.score - 0.02;
 
-if (top.key === "other_animal") {
+if (looksLikeMaskedPalmCivet) {
+
+  winnerName.textContent = "其他動物";
+  winnerText.textContent =
+    "圖片外觀較接近白鼻心，因此歸類為其他動物。";
+
+} else if (top.key === "other_animal") {
 
   winnerName.textContent = "其他動物";
   winnerText.textContent =
@@ -368,7 +395,7 @@ if (top.key === "other_animal") {
 scores.innerHTML = normalized.map(item => `
   <div class="score">
     <div class="score-head">
-      <span>${item.name}</span>
+      <span>${item.key === "masked_palm_civet" ? "其他動物（白鼻心）" : item.name}</span>
       <b>${(item.score * 100).toFixed(1)}%</b>
     </div>
     <div class="track">
